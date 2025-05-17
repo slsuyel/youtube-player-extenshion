@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Mini - Overlay</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+    .video-container {
+      width: 100%;
+      height: 100%;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="video-container" id="video-container">
+    <!-- Video will be inserted here -->
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Get URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const videoId = urlParams.get('videoId');
+      
+      // Create YouTube embed
+      if (videoId) {
+        const videoContainer = document.getElementById('video-container');
+        if (videoContainer) {
+          const iframe = document.createElement('iframe');
+          iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+          iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+          iframe.allowFullscreen = true;
+          
+          videoContainer.appendChild(iframe);
+        }
+      }
+      
+      // Listen for messages from parent
+      window.addEventListener('message', (event) => {
+        if (event.data.action === 'closeOverlay') {
+          window.parent.postMessage({ action: 'overlayClose' }, '*');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
