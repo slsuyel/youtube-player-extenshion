@@ -39,7 +39,7 @@
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: #ff0000;
+      
         display: flex;
         align-items: center;
         justify-content: center;
@@ -49,7 +49,7 @@
       #youtube-mini-icon img {
         width: 32px;
         height: 32px;
-        filter: brightness(0) invert(1);
+       
       }
     `
   

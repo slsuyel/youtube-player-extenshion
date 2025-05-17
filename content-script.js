@@ -6,6 +6,8 @@ let isDragging = false
 let dragOffsetX = 0
 let dragOffsetY = 0
 let currentVideoId = null
+let searchResults = [] // Store search results
+let currentVideoIndex = -1 // Track current video index
 
 // Signal that the content script is ready
 const CONTENT_SCRIPT_READY = true
@@ -66,7 +68,7 @@ function injectCSS() {
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: #ff0000;
+   
       display: flex;
       align-items: center;
       justify-content: center;
@@ -76,7 +78,7 @@ function injectCSS() {
     #youtube-mini-icon img {
       width: 32px;
       height: 32px;
-      filter: brightness(0) invert(1);
+     
     }
     
     /* Browse Dialog */
@@ -344,7 +346,7 @@ function injectCSS() {
       gap: 8px;
     }
     
-    .minimize-button {
+    .minimize-button, .back-button {
       background: transparent;
       border: none;
       color: rgba(255, 255, 255, 0.7);
@@ -359,7 +361,7 @@ function injectCSS() {
       border-radius: 50%;
     }
     
-    .minimize-button:hover {
+    .minimize-button:hover, .back-button:hover {
       background-color: rgba(255, 255, 255, 0.1);
       color: white;
     }
@@ -373,11 +375,47 @@ function injectCSS() {
       padding: 8px 12px;
       background: #1a1a1a;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .channel-title {
       font-size: 12px;
       color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .navigation-controls {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .nav-button {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .nav-button:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+    
+    .nav-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .nav-button svg {
+      width: 16px;
+      height: 16px;
     }
   `
   document.head.appendChild(style)
@@ -500,6 +538,11 @@ function openBrowseDialog() {
 
   // Make the dialog draggable
   makeDraggable(dialog, dialog.querySelector(".dialog-header"))
+
+  // If we have previous search results, display them
+  if (searchResults.length > 0) {
+    displaySearchResults(searchResults, resultsContainer)
+  }
 }
 
 function searchYouTube(query, resultsContainer) {
@@ -565,10 +608,11 @@ function searchYouTube(query, resultsContainer) {
 
       // Process and display videos
       if (data.items && data.items.length > 0) {
-        data.items.forEach((video) => {
-          const videoCard = createVideoCard(video)
-          resultsContainer.appendChild(videoCard)
-        })
+        // Save search results globally
+        searchResults = data.items
+
+        // Display the results
+        displaySearchResults(searchResults, resultsContainer)
       } else {
         resultsContainer.innerHTML = `
             <div class="info-message">
@@ -593,7 +637,18 @@ function searchYouTube(query, resultsContainer) {
     })
 }
 
-function createVideoCard(video) {
+function displaySearchResults(videos, container) {
+  // Clear container
+  container.innerHTML = ""
+
+  // Add videos to container
+  videos.forEach((video, index) => {
+    const videoCard = createVideoCard(video, index)
+    container.appendChild(videoCard)
+  })
+}
+
+function createVideoCard(video, index) {
   const videoCard = document.createElement("div")
   videoCard.className = "video-card"
 
@@ -629,20 +684,21 @@ function createVideoCard(video) {
     }
 
     // Open the video overlay
-    openVideoOverlay(video.id, video.snippet.title, video.snippet.channelTitle)
+    openVideoOverlay(video.id, video.snippet.title, video.snippet.channelTitle, index)
   })
 
   return videoCard
 }
 
-function openVideoOverlay(videoId, videoTitle, channelTitle) {
+function openVideoOverlay(videoId, videoTitle, channelTitle, index = -1) {
   // Remove existing overlay if any
   if (videoOverlay) {
     document.body.removeChild(videoOverlay)
   }
 
-  // Save current video ID
+  // Save current video ID and index
   currentVideoId = videoId
+  currentVideoIndex = index
 
   // Create overlay container
   videoOverlay = document.createElement("div")
@@ -652,8 +708,9 @@ function openVideoOverlay(videoId, videoTitle, channelTitle) {
     <div class="overlay-header">
       <div class="overlay-title">${videoTitle || "YouTube Video"}</div>
       <div class="overlay-controls">
-        <button class="minimize-button">_</button>
-        <button class="close-button">×</button>
+        <button class="back-button" title="Back to search results">↩</button>
+        <button class="minimize-button" title="Minimize">_</button>
+        <button class="close-button" title="Close">×</button>
       </div>
     </div>
     <div class="overlay-body">
@@ -669,6 +726,20 @@ function openVideoOverlay(videoId, videoTitle, channelTitle) {
     </div>
     <div class="overlay-footer">
       <div class="channel-title">${channelTitle || ""}</div>
+      <div class="navigation-controls">
+        <button class="nav-button prev-button" ${index <= 0 ? "disabled" : ""} title="Previous video">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+          Prev
+        </button>
+        <button class="nav-button next-button" ${index >= searchResults.length - 1 || index === -1 ? "disabled" : ""} title="Next video">
+          Next
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </button>
+      </div>
     </div>
   `
 
@@ -679,6 +750,13 @@ function openVideoOverlay(videoId, videoTitle, channelTitle) {
     currentVideoId = null
   })
 
+  // Back button - return to search results
+  videoOverlay.querySelector(".back-button").addEventListener("click", () => {
+    document.body.removeChild(videoOverlay)
+    videoOverlay = null
+    openBrowseDialog()
+  })
+
   const minimizeButton = videoOverlay.querySelector(".minimize-button")
   minimizeButton.addEventListener("click", () => {
     const overlayBody = videoOverlay.querySelector(".overlay-body")
@@ -687,7 +765,7 @@ function openVideoOverlay(videoId, videoTitle, channelTitle) {
     if (overlayBody.style.display === "none") {
       // Expand
       overlayBody.style.display = "block"
-      overlayFooter.style.display = "block"
+      overlayFooter.style.display = "flex"
       minimizeButton.textContent = "_"
       videoOverlay.classList.remove("minimized")
     } else {
@@ -698,6 +776,28 @@ function openVideoOverlay(videoId, videoTitle, channelTitle) {
       videoOverlay.classList.add("minimized")
     }
   })
+
+  // Previous video button
+  const prevButton = videoOverlay.querySelector(".prev-button")
+  if (!prevButton.disabled) {
+    prevButton.addEventListener("click", () => {
+      if (currentVideoIndex > 0 && searchResults.length > 0) {
+        const prevVideo = searchResults[currentVideoIndex - 1]
+        openVideoOverlay(prevVideo.id, prevVideo.snippet.title, prevVideo.snippet.channelTitle, currentVideoIndex - 1)
+      }
+    })
+  }
+
+  // Next video button
+  const nextButton = videoOverlay.querySelector(".next-button")
+  if (!nextButton.disabled) {
+    nextButton.addEventListener("click", () => {
+      if (currentVideoIndex < searchResults.length - 1) {
+        const nextVideo = searchResults[currentVideoIndex + 1]
+        openVideoOverlay(nextVideo.id, nextVideo.snippet.title, nextVideo.snippet.channelTitle, currentVideoIndex + 1)
+      }
+    })
+  }
 
   // Make the overlay draggable
   makeDraggable(videoOverlay, videoOverlay.querySelector(".overlay-header"))
