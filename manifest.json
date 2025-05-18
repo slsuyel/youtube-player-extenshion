@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Mini Browser",
+  "name": "Mini YouTube ",
   "version": "1.0",
   "description": "Browse and watch YouTube videos in a floating overlay.",
   "permissions": ["tabs", "storage", "scripting", "activeTab"],
